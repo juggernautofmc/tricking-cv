@@ -19,8 +19,8 @@ class Analysis:
     def compute(self, landmarks):
         self.frame_count += 1
         if self.frame_count <= 30: 
-            lankle = landmarks[27].y
-            rankle = landmarks[28].y
+            lankle = landmarks.landmark[27].y
+            rankle = landmarks.landmark[28].y
             if self.groundheight is None:
                 self.groundheight = min(lankle, rankle) # we want min since larger y means closest to bottom of screen
             else:
@@ -35,13 +35,17 @@ class Analysis:
 
     def is_airborne(self, landmarks):
         # input: 33 landmarks, output: True if both feet are off the ground, False otherwise
-        if landmarks is None:
-            return False
-        lhips = landmarks[23].y 
-        rhips = landmarks[24].y
-        lankle = landmarks[27].y
-        rankle = landmarks[28].y
-        if lankle < lhips and rankle < rhips:
-            return True
+
+        if self.frame_count > 30: #we waiting until 30 frames, assume they haven't jumped before then
+            if landmarks is None:
+                return False
+            lhips = landmarks.landmark[23].y 
+            rhips = landmarks.landmark[24].y
+            lankle = landmarks.landmark[27].y
+            rankle = landmarks.landmark[28].y
+            if lankle < lhips and rankle < rhips:
+                return True
+            if lankle < self.groundheight or rankle < self.groundheight:
+                return True
         return False
-        
+            
