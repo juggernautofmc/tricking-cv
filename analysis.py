@@ -9,6 +9,19 @@ import numpy as np
 # - this file should NOT know anything about video frames or drawing —
 #   it only does math on landmark coordinates
 
+## LANDMARK INDICES
+LEFT_SHOULDER_ID = 11
+RIGHT_SHOULDER_ID = 12
+LEFT_ELBOW_ID = 13
+RIGHT_ELBOW_ID = 14
+LEFT_WRIST_ID = 15
+RIGHT_WRIST_ID = 16
+LEFT_HIP_ID = 23
+RIGHT_HIP_ID = 24
+LEFT_KNEE_ID = 25
+RIGHT_KNEE_ID = 26
+LEFT_HEEL_ID = 29
+RIGHT_HEEL_ID = 30
 
 class Analysis:
     def __init__(self):
