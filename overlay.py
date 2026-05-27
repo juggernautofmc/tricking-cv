@@ -8,6 +8,7 @@ import mediapipe as mp
 # - display the frame in a window and handle the quit key
 # - this file should NOT do any math or detection — only drawing and display
 
+## LANDMARK INDICES
 LEFT_SHOULDER_ID = 11
 RIGHT_SHOULDER_ID = 12
 LEFT_ELBOW_ID = 13
@@ -21,14 +22,101 @@ RIGHT_KNEE_ID = 26
 LEFT_HEEL_ID = 29
 RIGHT_HEEL_ID = 30
 
-def overlay(frame, pose):
-    pts = pose.pose_landmarks[0]
+## COLORS (B,G,R)
+RED = (0, 0, 255)
+GREEN = (0, 255, 0)
+BLUE = (255, 0, 0)
+YELLOW = (0, 255, 255)
 
-    ## LEFT ARM DRAWING
-    l_shoulder_x = pts[LEFT_SHOULDER_ID].x
-    l_shoulder_y = pts[LEFT_SHOULDER_ID].y
-    l_elbow_x = pts[LEFT_ELBOW_ID].x
-    l_elbow_y = pts[LEFT_ELBOW_ID].y
-    l_wrist_x = pts[LEFT_WRIST_ID].x
-    l_wrist_y = pts[LEFT_WRIST_ID].y
+
+class Overlay:
     
+    def __init__(self, landmarks):
+
+        ## LEFT ARM
+        self.lx_shoulder = landmarks[LEFT_SHOULDER_ID].x
+        self.ly_shoulder = landmarks[LEFT_SHOULDER_ID].y
+        self.lv_shoulder = landmarks[LEFT_SHOULDER_ID].visibility
+
+        self.lx_elbow = landmarks[LEFT_ELBOW_ID].x
+        self.ly_elbow = landmarks[LEFT_ELBOW_ID].y
+        self.lv_elbow = landmarks[LEFT_ELBOW_ID].visibility
+
+        self.lx_wrist = landmarks[LEFT_WRIST_ID].x
+        self.ly_wrist = landmarks[LEFT_WRIST_ID].y
+        self.lv_wrist = landmarks[LEFT_WRIST_ID].visibility
+
+        ## RIGHT ARM
+        self.rx_shoulder = landmarks[RIGHT_SHOULDER_ID].x
+        self.ry_shoulder = landmarks[RIGHT_SHOULDER_ID].y
+        self.rv_shoulder = landmarks[RIGHT_SHOULDER_ID].visibility
+
+        self.rx_elbow = landmarks[RIGHT_ELBOW_ID].x
+        self.ry_elbow = landmarks[RIGHT_ELBOW_ID].y
+        self.rv_elbow = landmarks[RIGHT_ELBOW_ID].visibility
+
+        self.rx_wrist = landmarks[RIGHT_WRIST_ID].x
+        self.ry_wrist = landmarks[RIGHT_WRIST_ID].y
+        self.rv_wrist = landmarks[RIGHT_WRIST_ID].visibility
+
+        ## LEFT LEG
+        self.lx_hip = landmarks[LEFT_HIP_ID].x
+        self.ly_hip = landmarks[LEFT_HIP_ID].y
+        self.lv_hip = landmarks[LEFT_HIP_ID].visibility
+
+        self.lx_knee = landmarks[LEFT_KNEE_ID].x
+        self.ly_knee = landmarks[LEFT_KNEE_ID].y
+        self.lv_knee = landmarks[LEFT_KNEE_ID].visibility
+
+        self.lx_heel = landmarks[LEFT_HEEL_ID].x
+        self.ly_heel = landmarks[LEFT_HEEL_ID].y
+        self.lv_heel = landmarks[LEFT_HEEL_ID].visibility
+
+        ## RIGHT LEG
+        self.rx_hip = landmarks[RIGHT_HIP_ID].x
+        self.ry_hip = landmarks[RIGHT_HIP_ID].y
+        self.rv_hip = landmarks[RIGHT_HIP_ID].visibility
+
+        self.rx_knee = landmarks[RIGHT_KNEE_ID].x
+        self.ry_knee = landmarks[RIGHT_KNEE_ID].y
+        self.rv_knee = landmarks[RIGHT_KNEE_ID].visibility
+
+        self.rx_heel = landmarks[RIGHT_HEEL_ID].x
+        self.ry_heel = landmarks[RIGHT_HEEL_ID].y
+        self.rv_heel = landmarks[RIGHT_HEEL_ID].visibility
+
+    def draw_point(frame, x, y, color):
+        cv2.circle(frame, (x, y), 10, color, -1)
+    
+    def draw_overlay(self, frame):
+        # LEFT ARM
+        if self.lv_shoulder > 0.5:
+            self.draw_point(frame, self.lx_shoulder, self.ly_shoulder, RED)
+        if self.lv_elbow > 0.5:
+            self.draw_point(frame, self.lx_elbow, self.ly_elbow, RED)
+        if self.lv_wrist > 0.5:
+            self.draw_point(frame, self.lx_wrist, self.ly_wrist, RED)
+        
+        # RIGHT ARM
+        if self.rv_shoulder > 0.5:
+            self.draw_point(frame, self.rx_shoulder, self.ry_shoulder, GREEN)
+        if self.rv_elbow > 0.5:
+            self.draw_point(frame, self.rx_elbow, self.ry_elbow, GREEN)
+        if self.rv_wrist > 0.5:
+            self.draw_point(frame, self.rx_wrist, self.ry_wrist, GREEN)
+
+        # LEFT LEG
+        if self.lv_hip > 0.5:
+            self.draw_point(frame, self.lx_hip, self.ly_hip, BLUE)
+        if self.lv_knee > 0.5:
+            self.draw_point(frame, self.lx_knee, self.ly_knee, BLUE)
+        if self.lv_heel > 0.5:
+            self.draw_point(frame, self.lx_heel, self.ly_heel, BLUE)
+
+        # RIGHT LEG
+        if self.rv_hip > 0.5:
+            self.draw_point(frame, self.rx_hip, self.ry_hip, YELLOW)
+        if self.rv_knee > 0.5:
+            self.draw_point(frame, self.rx_knee, self.ry_knee, YELLOW)
+        if self.rv_heel > 0.5:
+            self.draw_point(frame, self.rx_heel, self.ry_heel, YELLOW)
