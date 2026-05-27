@@ -21,10 +21,13 @@ class VideoCapture:
     def read(self):
         # input: none
         # output: frame (numpy array) if successful, None if video is done or failed
-        pass
+        success, frame = self.cap.read()
+        if not success:
+            return None
+        return frame
 
     def release(self):
         # input: none
         # output: none, releases the video source and closes windows
-        pass
-
+        self.cap.release()
+        cv2.destroyAllWindows()
