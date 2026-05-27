@@ -22,7 +22,12 @@ class PoseDetector:
         
 
     def process(self, frame):
-        # input: frame — a BGR numpy array from capture.py
-        # output: pose_landmarks object (33 landmarks) if a person is detected, None otherwise
-        # used by: app.py on every frame, result is passed to analysis.py
-        pass
+        # input: bgr frame from capture.py
+        # output: returns the 33 landmarks for a pose/33 spots that mediapipe detects
+        # app.py calls this process every frame and gives it to analysis.py
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) #literally just swap to get rgb from bgr
+        results = self.pose.process(rgb_frame)
+        if results.pose_landmarks is None:
+            return None
+        return results.pose_landmarks
+
