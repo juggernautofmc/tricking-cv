@@ -32,12 +32,12 @@ class Analysis:
     def compute(self, landmarks):
         self.frame_count += 1
         if self.frame_count <= 30: 
-            lankle = landmarks.landmark[27].y
-            rankle = landmarks.landmark[28].y
+            lheel = landmarks.landmark[LEFT_HEEL_ID].y
+            rheel = landmarks.landmark[RIGHT_HEEL_ID].y
             if self.groundheight is None:
-                self.groundheight = min(lankle, rankle) # we want min since larger y means closest to bottom of screen
+                self.groundheight = min(lheel, rheel) # we want min since larger y means closest to bottom of screen
             else:
-                self.groundheight = min(self.groundheight, lankle, rankle)
+                self.groundheight = min(self.groundheight, lheel, rheel)
 
         # input: 33 landmarks from pose.py, output: dict of metrics (joint angles, foot height, airborne)
         pass
@@ -52,13 +52,13 @@ class Analysis:
         if self.frame_count > 30: #we waiting until 30 frames, assume they haven't jumped before then
             if landmarks is None:
                 return False
-            lhips = landmarks.landmark[23].y 
-            rhips = landmarks.landmark[24].y
-            lankle = landmarks.landmark[27].y
-            rankle = landmarks.landmark[28].y
-            if lankle < lhips and rankle < rhips:
+            lhips = landmarks.landmark[LEFT_HIP_ID].y
+            rhips = landmarks.landmark[RIGHT_HIP_ID].y
+            lheel = landmarks.landmark[LEFT_HEEL_ID].y
+            rheel = landmarks.landmark[RIGHT_HEEL_ID].y
+            if lheel < lhips and rheel < rhips:
                 return True
-            if lankle < self.groundheight or rankle < self.groundheight:
+            if lheel < self.groundheight or rheel < self.groundheight:
                 return True
         return False
             
