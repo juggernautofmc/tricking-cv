@@ -11,8 +11,21 @@ import numpy as np
 
 
 class Analysis:
+    def __init__(self):
+        # input: none, output: none, useless function lol 
+        self.groundheight = None
+        self.frame_count = 0 #yup we tracking frames now
 
     def compute(self, landmarks):
+        self.frame_count += 1
+        if self.frame_count <= 30: 
+            lankle = landmarks[27].y
+            rankle = landmarks[28].y
+            if self.groundheight is None:
+                self.groundheight = min(lankle, rankle) # we want min since larger y means closest to bottom of screen
+            else:
+                self.groundheight = min(self.groundheight, lankle, rankle)
+
         # input: 33 landmarks from pose.py, output: dict of metrics (joint angles, foot height, airborne)
         pass
 
@@ -28,8 +41,6 @@ class Analysis:
         rhips = landmarks[24].y
         lankle = landmarks[27].y
         rankle = landmarks[28].y
-        lknee = landmarks[25].y
-        rknee = landmarks[26].y
         if lankle < lhips and rankle < rhips:
             return True
         return False
