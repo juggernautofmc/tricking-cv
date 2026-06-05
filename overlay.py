@@ -7,6 +7,7 @@ import mediapipe as mp
 # - draw a HUD showing useful numbers (joint angles, airborne state, etc.)
 # - display the frame in a window and handle the quit key
 # - this file should NOT do any math or detection — only drawing and display
+# - Sami
 
 ## LANDMARK INDICES
 LEFT_SHOULDER_ID = 11
@@ -31,61 +32,61 @@ YELLOW = (0, 255, 255)
 
 class Overlay:
     
-    def __init__(self, landmarks):
+    def __init__(self, landmarks, width, height):
 
         ## LEFT ARM
-        self.lx_shoulder = landmarks[LEFT_SHOULDER_ID].x
-        self.ly_shoulder = landmarks[LEFT_SHOULDER_ID].y
+        self.lx_shoulder = int(landmarks[LEFT_SHOULDER_ID].x * width)
+        self.ly_shoulder = int(landmarks[LEFT_SHOULDER_ID].y * height)
         self.lv_shoulder = landmarks[LEFT_SHOULDER_ID].visibility
 
-        self.lx_elbow = landmarks[LEFT_ELBOW_ID].x
-        self.ly_elbow = landmarks[LEFT_ELBOW_ID].y
+        self.lx_elbow = int(landmarks[LEFT_ELBOW_ID].x * width)
+        self.ly_elbow = int(landmarks[LEFT_ELBOW_ID].y * height)
         self.lv_elbow = landmarks[LEFT_ELBOW_ID].visibility
 
-        self.lx_wrist = landmarks[LEFT_WRIST_ID].x
-        self.ly_wrist = landmarks[LEFT_WRIST_ID].y
+        self.lx_wrist = int(landmarks[LEFT_WRIST_ID].x * width)
+        self.ly_wrist = int(landmarks[LEFT_WRIST_ID].y * height)
         self.lv_wrist = landmarks[LEFT_WRIST_ID].visibility
 
         ## RIGHT ARM
-        self.rx_shoulder = landmarks[RIGHT_SHOULDER_ID].x
-        self.ry_shoulder = landmarks[RIGHT_SHOULDER_ID].y
+        self.rx_shoulder = int(landmarks[RIGHT_SHOULDER_ID].x * width)
+        self.ry_shoulder = int(landmarks[RIGHT_SHOULDER_ID].y * height)
         self.rv_shoulder = landmarks[RIGHT_SHOULDER_ID].visibility
 
-        self.rx_elbow = landmarks[RIGHT_ELBOW_ID].x
-        self.ry_elbow = landmarks[RIGHT_ELBOW_ID].y
+        self.rx_elbow = int(landmarks[RIGHT_ELBOW_ID].x * width)
+        self.ry_elbow = int(landmarks[RIGHT_ELBOW_ID].y * height)
         self.rv_elbow = landmarks[RIGHT_ELBOW_ID].visibility
 
-        self.rx_wrist = landmarks[RIGHT_WRIST_ID].x
-        self.ry_wrist = landmarks[RIGHT_WRIST_ID].y
+        self.rx_wrist = int(landmarks[RIGHT_WRIST_ID].x * width)
+        self.ry_wrist = int(landmarks[RIGHT_WRIST_ID].y * height)
         self.rv_wrist = landmarks[RIGHT_WRIST_ID].visibility
 
         ## LEFT LEG
-        self.lx_hip = landmarks[LEFT_HIP_ID].x
-        self.ly_hip = landmarks[LEFT_HIP_ID].y
+        self.lx_hip = int(landmarks[LEFT_HIP_ID].x * width)
+        self.ly_hip = int(landmarks[LEFT_HIP_ID].y * height)
         self.lv_hip = landmarks[LEFT_HIP_ID].visibility
 
-        self.lx_knee = landmarks[LEFT_KNEE_ID].x
-        self.ly_knee = landmarks[LEFT_KNEE_ID].y
+        self.lx_knee = int(landmarks[LEFT_KNEE_ID].x * width)
+        self.ly_knee = int(landmarks[LEFT_KNEE_ID].y * height)
         self.lv_knee = landmarks[LEFT_KNEE_ID].visibility
 
-        self.lx_heel = landmarks[LEFT_HEEL_ID].x
-        self.ly_heel = landmarks[LEFT_HEEL_ID].y
+        self.lx_heel = int(landmarks[LEFT_HEEL_ID].x * width)
+        self.ly_heel = int(landmarks[LEFT_HEEL_ID].y * height)
         self.lv_heel = landmarks[LEFT_HEEL_ID].visibility
 
         ## RIGHT LEG
-        self.rx_hip = landmarks[RIGHT_HIP_ID].x
-        self.ry_hip = landmarks[RIGHT_HIP_ID].y
+        self.rx_hip = int(landmarks[RIGHT_HIP_ID].x * width)
+        self.ry_hip = int(landmarks[RIGHT_HIP_ID].y * height)
         self.rv_hip = landmarks[RIGHT_HIP_ID].visibility
 
-        self.rx_knee = landmarks[RIGHT_KNEE_ID].x
-        self.ry_knee = landmarks[RIGHT_KNEE_ID].y
+        self.rx_knee = int(landmarks[RIGHT_KNEE_ID].x * width)
+        self.ry_knee = int(landmarks[RIGHT_KNEE_ID].y * height)
         self.rv_knee = landmarks[RIGHT_KNEE_ID].visibility
 
-        self.rx_heel = landmarks[RIGHT_HEEL_ID].x
-        self.ry_heel = landmarks[RIGHT_HEEL_ID].y
+        self.rx_heel = int(landmarks[RIGHT_HEEL_ID].x * width)
+        self.ry_heel = int(landmarks[RIGHT_HEEL_ID].y * height)
         self.rv_heel = landmarks[RIGHT_HEEL_ID].visibility
 
-    def draw_point(frame, x, y, color):
+    def draw_point(self, frame, x, y, color):
         cv2.circle(frame, (x, y), 10, color, -1)
     
     def draw_overlay(self, frame):
@@ -120,3 +121,4 @@ class Overlay:
             self.draw_point(frame, self.rx_knee, self.ry_knee, YELLOW)
         if self.rv_heel > 0.5:
             self.draw_point(frame, self.rx_heel, self.ry_heel, YELLOW)
+        
