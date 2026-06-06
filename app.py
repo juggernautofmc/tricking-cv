@@ -44,9 +44,12 @@ def main(source):
         landmarks = pos.process(frame, fps)
 
         if landmarks is not None: #gotta check if there are no people in frame so we dont pass none
-            ##metrics = anly.compute(landmarks) 
+            ##metrics = anly.compute(landmarks)
+            anly.compute(landmarks)
+            airborne = anly.is_airborne(landmarks)
+
             ovly = overlay.Overlay(landmarks, width, height)
-            ovly.draw_overlay(frame)
+            ovly.draw_overlay(frame, airborne)
         
         writer.write(frame) # make sure we writin the new frames and stuff
     capt.release()

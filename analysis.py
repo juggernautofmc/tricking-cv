@@ -26,18 +26,26 @@ RIGHT_HEEL_ID = 30
 class Analysis:
     def __init__(self):
         # input: none, output: none, useless function lol 
-        self.groundheight = None
+        self.leftgroundheight = None
+        self.rightgroundheight = None
+        self.prevlefthips = None
+        self.prevrighthips = None
         self.frame_count = 0 #yup we tracking frames now
 
     def compute(self, landmarks):
         self.frame_count += 1
-        if self.frame_count <= 30: 
-            lheel = landmarks.landmark[LEFT_HEEL_ID].y
-            rheel = landmarks.landmark[RIGHT_HEEL_ID].y
-            if self.groundheight is None:
-                self.groundheight = min(lheel, rheel) # we want min since larger y means closest to bottom of screen
-            else:
-                self.groundheight = min(self.groundheight, lheel, rheel)
+        if self.frame_count <= 5: 
+            lheel = landmarks[LEFT_HEEL_ID].y
+            rheel = landmarks[RIGHT_HEEL_ID].y
+            lhips = landmarks[LEFT_HIP_ID].y
+            rhips = landmarks[RIGHT_HIP_ID].y
+            if self.leftgroundheight is None:
+                self.leftgroundheight = lheel
+                self.rightgroundheight = rheel
+                self.prevlefthips = lhips
+                self.prevrighthips = rhips
+            #else:
+                #self.groundheight = min(self.groundheight, lheel, rheel)
 
         # input: 33 landmarks from pose.py, output: dict of metrics (joint angles, foot height, airborne)
         pass
@@ -49,16 +57,20 @@ class Analysis:
     def is_airborne(self, landmarks):
         # input: 33 landmarks, output: True if both feet are off the ground, False otherwise
 
-        if self.frame_count > 30: #we waiting until 30 frames, assume they haven't jumped before then
+        if self.frame_count > 5: #we waiting until 30 frames, assume they haven't jumped before then
             if landmarks is None:
                 return False
-            lhips = landmarks.landmark[LEFT_HIP_ID].y
-            rhips = landmarks.landmark[RIGHT_HIP_ID].y
-            lheel = landmarks.landmark[LEFT_HEEL_ID].y
-            rheel = landmarks.landmark[RIGHT_HEEL_ID].y
-            if lheel < lhips and rheel < rhips:
-                return True
-            if lheel < self.groundheight or rheel < self.groundheight:
-                return True
+            lhips = landmarks[LEFT_HIP_ID].y
+            rhips = landmarks[RIGHT_HIP_ID].y
+            lheel = landmarks[LEFT_HEEL_ID].y
+            rheel = landmarks[RIGHT_HEEL_ID].y
+            ##if lheel < lhips and rheel < rhips:
+                ##return True
+            if lheel < self.leftgroundheight and rheel < self.rightgroundheight:
+                if lhips < self.prevlefthips and rhips < self.prevrighthips:
+                    return True
+                else:
+                    self.prevlefthips = lhips
+                    self.prevrighthips = rhips
         return False
             

@@ -35,6 +35,12 @@ PINK = (193, 182, 255)
 class Overlay:
     
     def __init__(self, landmarks, width, height):
+    # input: landmarks, ints for width and height of the frame
+    # output: none, just setting the attributes for each limb
+
+        ## FRAME SIZE
+        self.frame_width = width
+        self.frame_height = height
 
         ## LEFT ARM
         self.lx_shoulder = int(landmarks[LEFT_SHOULDER_ID].x * width)
@@ -89,12 +95,25 @@ class Overlay:
         self.rv_heel = landmarks[RIGHT_HEEL_ID].visibility
 
     def draw_point(self, frame, x, y, color):
+        # input: opencv frame, x & y coords, color
+        # output: none, draws a point
         cv2.circle(frame, (x, y), 10, color, -1)
 
     def draw_line(self, frame, pt1, pt2, color):
+        # input: opencv frame, two points w/ x, y coords, color
+        # output: none, draws a line
         cv2.line(frame, pt1, pt2, color, 2, cv2.LINE_AA)
     
-    def draw_overlay(self, frame):
+    def write_text(self, frame, text, x, y, color):
+        # input: opencv frame, string of text, x and y (on a scale from 0 to 1), color
+        # output: none, writes text
+        x = int(x * self.frame_width)
+        y = int(y * self.frame_height)
+        cv2.putText(frame, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 3, color, 5, cv2.LINE_AA)
+    
+    def draw_overlay(self, frame, airborne):
+        # input: opencv frame, bool for airborne
+        # output: none, draws the entire overlay using above helper functions
         # LEFT ARM
         if self.lv_shoulder > 0.5:
             self.draw_point(frame, self.lx_shoulder, self.ly_shoulder, RED)
@@ -160,4 +179,10 @@ class Overlay:
             self.draw_point(frame, hips_midpt_x, hips_midpt_y, PINK)
             self.draw_line(frame, (self.rx_hip, self.ry_hip), (hips_midpt_x, hips_midpt_y), PINK)
             self.draw_line(frame, (self.lx_hip, self.ly_hip), (hips_midpt_x, hips_midpt_y), PINK)
+        
+        # AIRBORNE INDICATOR
+        if airborne:
+            self.write_text(frame, "Airborne", 0.4, 0.8, PINK)
+        else:
+            self.write_text(frame, "On ground", 0.4, 0.8, PINK)
         
