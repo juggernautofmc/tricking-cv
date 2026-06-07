@@ -30,6 +30,8 @@ class Analysis:
         self.rightgroundheight = None
         self.prevlefthips = None
         self.prevrighthips = None
+        self.prevleftknee = None
+        self.prevrightknee = None
         self.frame_count = 0 #yup we tracking frames now
 
     def compute(self, landmarks):
@@ -39,11 +41,15 @@ class Analysis:
             rheel = landmarks[RIGHT_HEEL_ID].y
             lhips = landmarks[LEFT_HIP_ID].y
             rhips = landmarks[RIGHT_HIP_ID].y
+            lknee = landmarks[LEFT_KNEE_ID].y
+            rknee = landmarks[RIGHT_KNEE_ID].y
             if self.leftgroundheight is None:
                 self.leftgroundheight = lheel
                 self.rightgroundheight = rheel
                 self.prevlefthips = lhips
                 self.prevrighthips = rhips
+                self.prevleftknee = lknee
+                self.prevrightknee = rknee
             #else:
                 #self.groundheight = min(self.groundheight, lheel, rheel)
 
@@ -64,13 +70,20 @@ class Analysis:
             rhips = landmarks[RIGHT_HIP_ID].y
             lheel = landmarks[LEFT_HEEL_ID].y
             rheel = landmarks[RIGHT_HEEL_ID].y
+            lknee = landmarks[LEFT_KNEE_ID].y
+            rknee = landmarks[RIGHT_KNEE_ID].y
             ##if lheel < lhips and rheel < rhips:
                 ##return True
             if lheel < self.leftgroundheight and rheel < self.rightgroundheight:
                 if lhips < self.prevlefthips and rhips < self.prevrighthips:
-                    return True
+                    if lknee < self.prevleftknee and rknee < self.prevrightknee:
+                        return True
                 else:
+                    self.leftgroundheight = lheel
+                    self.rightgroundheight = rheel
                     self.prevlefthips = lhips
                     self.prevrighthips = rhips
+                    self.prevleftknee = lknee
+                    self.prevrightknee = rknee
         return False
             
