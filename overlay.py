@@ -111,7 +111,7 @@ class Overlay:
         y = int(y * self.frame_height)
         cv2.putText(frame, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 3, color, 5, cv2.LINE_AA)
     
-    def draw_overlay(self, frame, airborne):
+    def draw_overlay(self, frame, airborne, rot):
         # input: opencv frame, bool for airborne
         # output: none, draws the entire overlay using above helper functions
         # LEFT ARM
@@ -185,4 +185,6 @@ class Overlay:
             self.write_text(frame, "Airborne", 0.4, 0.8, PINK)
         else:
             self.write_text(frame, "On ground", 0.4, 0.8, PINK)
+        
+        self.write_text(frame, str(int(rot)), 0.4, 0.9, PINK)
         

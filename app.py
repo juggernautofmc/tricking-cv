@@ -45,11 +45,12 @@ def main(source):
 
         if landmarks is not None: #gotta check if there are no people in frame so we dont pass none
             ##metrics = anly.compute(landmarks)
-            anly.compute(landmarks)
-            airborne = anly.is_airborne(landmarks)
+            result = anly.compute(landmarks)
+            airborne = result["is_airborne"]
+            rot = result["in_air_rotation"]
 
             ovly = overlay.Overlay(landmarks, width, height)
-            ovly.draw_overlay(frame, airborne)
+            ovly.draw_overlay(frame, airborne, rot)
         
         writer.write(frame) # make sure we writin the new frames and stuff
     capt.release()
