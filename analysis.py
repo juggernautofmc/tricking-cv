@@ -40,7 +40,10 @@ class Analysis:
         self.prevhip = None
         self.prevmidpthips = None
         self.frame_count = 0 #yup we tracking frames now
-        self.in_air_rotation = 0
+        self.twist_rotation = 0 #trackin in-air twist along the vertical axis
+        self.flip_rotation = 0 # and flip rotation around the horizontal axis too
+        self.front_view_confidence = 0 # how much are we sure this is starting from a front view
+        self.side_view_confidence = 0 # same thing but for side view
 
     def compute(self, landmarks):
         self.frame_count += 1
@@ -62,17 +65,27 @@ class Analysis:
                 #self.groundheight = min(self.groundheight, lheel, rheel)
         airborne = self.is_airborne(landmarks)
         if airborne:
-            self.in_air_rotation += self.calc_rotation(landmarks)
+            self.twist_rotation += self.calc_twist_rot(landmarks)
         else:
-            self.in_air_rotation = 0
+            self.twist_rotation = 0
 
         # input: 33 landmarks from pose.py, output: dict of metrics (joint angles, foot height, airborne)
         result = {"is_airborne": airborne,
-                  "in_air_rotation": self.in_air_rotation}
+                  "in_air_rotation": self.twist_rotation}
 
         return result
     
-    def calc_rotation(self, landmarks):
+    # TODO: calc_confidence calculates values for front and side view confidence. it should do this
+    # based on horizontal distance between the heels. average the confidence values of the first few frames
+    def calc_confidence(self, landmarks):
+        pass
+    
+    # TODO: make calc_flip_rot use the line between the midpoint of the hips and the midpoint
+    # of the shoulders. Measures the change in this line's angle from the previous frame and returns it
+    def calc_flip_rot(self, landmarks):
+        pass
+
+    def calc_twist_rot(self, landmarks):
         curr_midpt_x = (landmarks[LEFT_HIP_ID].x + landmarks[RIGHT_HIP_ID].x) / 2
         curr_midpt_y = (landmarks[LEFT_HIP_ID].y + landmarks[RIGHT_HIP_ID].y) / 2
         curr_midpt = MockLandmark(curr_midpt_x, curr_midpt_y)
@@ -94,8 +107,29 @@ class Analysis:
         self.prevhip = curr_hip
         self.prevmidpthips = curr_midpt
 
-        return self.joint_angle(curr_hip, curr_midpt, init_hip)
+        return self.signed_joint_angle(curr_hip, curr_midpt, init_hip)
 
+
+    def signed_joint_angle(self, a, b, c):
+        # input: three landmarks (a, b, c) where b is the joint, output: SIGNED angle at b in degrees
+        p1 = np.array([a.x, a.y])
+        vertex = np.array([b.x, b.y])
+        p2 = np.array([c.x, c.y])
+
+        vec1 = p1 - vertex
+        vec2 = p2 - vertex
+
+        norm1 = np.linalg.norm(vec1)
+        norm2 = np.linalg.norm(vec2)
+
+        u1 = vec1 / norm1
+        u2 = vec2 / norm2
+
+        dot = np.dot(u1, u2)
+        cross = np.cross(u1, u2)
+        
+        return np.degrees(np.arctan2(cross, dot))
+    
     def joint_angle(self, a, b, c):
         # input: three landmarks (a, b, c) where b is the joint, output: angle at b in degrees
         p1 = np.array([a.x, a.y])
