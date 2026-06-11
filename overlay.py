@@ -41,6 +41,7 @@ class Overlay:
         ## FRAME SIZE
         self.frame_width = width
         self.frame_height = height
+        self.pixels = width * height
 
         ## LEFT ARM
         self.lx_shoulder = int(landmarks[LEFT_SHOULDER_ID].x * width)
@@ -97,19 +98,19 @@ class Overlay:
     def draw_point(self, frame, x, y, color):
         # input: opencv frame, x & y coords, color
         # output: none, draws a point
-        cv2.circle(frame, (x, y), 10, color, -1)
+        cv2.circle(frame, (x, y), int((0.000007 * self.pixels)), color, -1)
 
     def draw_line(self, frame, pt1, pt2, color):
         # input: opencv frame, two points w/ x, y coords, color
         # output: none, draws a line
-        cv2.line(frame, pt1, pt2, color, 2, cv2.LINE_AA)
+        cv2.line(frame, pt1, pt2, color, int((0.000003 * self.pixels)), cv2.LINE_AA)
     
     def write_text(self, frame, text, x, y, color):
         # input: opencv frame, string of text, x and y (on a scale from 0 to 1), color
         # output: none, writes text
         x = int(x * self.frame_width)
         y = int(y * self.frame_height)
-        cv2.putText(frame, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 3, color, 5, cv2.LINE_AA)
+        cv2.putText(frame, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, int((0.000001*self.pixels)), color, int((0.000004*self.pixels)), cv2.LINE_AA)
     
     def draw_overlay(self, frame, airborne, rot):
         # input: opencv frame, bool for airborne
@@ -186,5 +187,5 @@ class Overlay:
         else:
             self.write_text(frame, "On ground", 0.4, 0.8, PINK)
         
-        self.write_text(frame, str(int(rot)), 0.4, 0.9, PINK)
+        self.write_text(frame, str(int(rot)) + " DEGREES", 0.4, 0.86, PINK)
         

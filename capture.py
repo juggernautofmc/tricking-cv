@@ -10,21 +10,35 @@ import cv2
 
 class VideoCapture:
 
-    def __init__(self, source):
+    def __init__(self, source, target_fps=None):
         # input: source should be like a file path to example.mp4
         # output: none lol, bust initialize self.cap
         self.cap = cv2.VideoCapture(source)
+        self.native_fps = self.cap.get(cv2.CAP_PROP_FPS)
+        self.target_fps = target_fps
 
-        
+        self.target_dt_ms = None
+        self.next_time_ms = 0
 
+        if target_fps is not None:
+            self.target_dt_ms = 1000 / target_fps
 
     def read(self):
         # input: none
         # output: frame (numpy array) if successful, None if video is done or failed
-        success, frame = self.cap.read()
-        if not success:
-            return None
-        return frame
+        while True:
+            success, frame = self.cap.read()
+            if not success:
+                return None
+            
+            if self.target_fps is None:
+                return frame
+            
+            curr_time_ms = self.cap.get(cv2.CAP_PROP_POS_MSEC)
+
+            if curr_time_ms >= self.next_time_ms:
+                self.next_time_ms += self.target_dt_ms
+                return frame
 
     def release(self):
         # input: none

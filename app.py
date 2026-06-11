@@ -19,17 +19,18 @@ import overlay
 def main(source):
     # input: filepath 4 video, output: none
     # opens video with capture.py, then loops through calling the other files until we done
-    capt = capture.VideoCapture(source)
+    capt = capture.VideoCapture(source, target_fps=30)
     pos = pose.PoseDetector()
     anly = analysis.Analysis()
 
-    fps = capt.cap.get(cv2.CAP_PROP_FPS)
+    fps = 30
     width = int(capt.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(capt.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    conf = ""
 
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     writer = cv2.VideoWriter(
-            "goon.mp4",
+            "output.mp4",
             fourcc,
             fps,
             (width, height)
@@ -47,18 +48,26 @@ def main(source):
             ##metrics = anly.compute(landmarks)
             result = anly.compute(landmarks)
             airborne = result["is_airborne"]
-            rot = result["in_air_rotation"]
+            hip_rot = result["hip_rotation"]
+            front = result["front_view_confidence"]
+            side = result["side_view_confidence"]
 
             ovly = overlay.Overlay(landmarks, width, height)
-            ovly.draw_overlay(frame, airborne, rot)
+            ovly.draw_overlay(frame, airborne, hip_rot)
+
+            if front > side:
+                conf = "Front View Confidence: " + str(front)
+            else:
+                conf = "Side View Confidence: " + str(side)
         
         writer.write(frame) # make sure we writin the new frames and stuff
+    print(conf)
     capt.release()
     writer.release()
     pos.close()
 
 if __name__ == "__main__":
-    filepath = "backflippinggoonsesh.mp4"
+    filepath = "input.mp4"
     main(filepath)
     
 
