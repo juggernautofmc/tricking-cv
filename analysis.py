@@ -48,16 +48,13 @@ class Analysis:
         # input: none, output: none, useless function lol 
         self.leftgroundheight = None
         self.rightgroundheight = None
-        self.startlefthip = None
-        self.startrighthip = None
-        self.startleftknee = None
-        self.startrightknee = None
 
         self.prevhip = None #hip landmark of previous frame
         self.prevmidpthips = None #hip midpoint landmark of previous frame
         self.heel_vec = None
 
         self.frame_count = 0 #yup we tracking frames now
+        self.stable_heel_frames = 0
         self.hip_rotation = 0 #trackin OBSERVABLE in-air hip rotation about the midpoint in degrees 
         # (note: this number is not accurate to 3d space)
         self.heel_distance = 0 #distance between the two heels
@@ -67,6 +64,8 @@ class Analysis:
         self.side_view_confidence = 0 # same thing but for side view (0.0-1.0)
 
         self.airborne = False
+        self.inverted = False
+        self.first_jump = False
 
     def compute(self, landmarks):
 
@@ -78,38 +77,38 @@ class Analysis:
         rhips = landmarks[RIGHT_HIP_ID]
             
         self.frame_count += 1
-        if self.frame_count <= 20: 
 
-            conf = self.calc_confidence(landmarks)
-            self.front_view_confidence += conf["front"]
-            self.side_view_confidence += conf["side"]
+        if self.leftgroundheight is None:
+            self.leftgroundheight = lheel.y
+            self.rightgroundheight = rheel.y
 
-            if self.leftgroundheight is None:
-                self.leftgroundheight = lheel.y
-                self.rightgroundheight = rheel.y
-                self.startlefthip = lhips.y
-                self.startrighthip = rhips.y
-                self.startleftknee = lknee.y
-                self.startrightknee = rknee.y
-        
-        if self.frame_count == 20:
-            self.front_view_confidence /= 20
-            self.side_view_confidence /= 20
+        conf = self.calc_confidence(landmarks)
+
+        if not self.first_jump:
+            if self.front_view_confidence == 0 or self.side_view_confidence == 0:
+                self.front_view_confidence = conf["front"]
+                self.side_view_confidence = conf["side"]
+            else:
+                self.front_view_confidence = (self.front_view_confidence + conf["front"]) / 2
+                self.side_view_confidence = (self.side_view_confidence + conf["side"]) / 2
 
         self.airborne = self.is_airborne(landmarks)
         self.heel_vec = (np.array([lheel.x, lheel.y]) - np.array([rheel.x, rheel.y]))
         self.heel_distance = np.linalg.norm(self.heel_vec)
         self.l_knee_angle = self.joint_angle(lhips, lknee, lheel)
         self.r_knee_angle = self.joint_angle(rhips, rknee, rheel)
+        self.inverted = self.is_inverted(landmarks)
 
         if self.airborne:
             self.hip_rotation += self.calc_hip_rot(landmarks)
+            self.first_jump = True
         else:
             self.hip_rotation = 0
 
         # input: 33 landmarks from pose.py, output: dict of metrics (joint angles, foot height, airborne)
         result = {
             "is_airborne": self.airborne,
+            "is_inverted": self.inverted,
             "hip_rotation": self.hip_rotation,
             "heel_vec": self.heel_vec,
             "heel_dist": self.heel_distance,
@@ -138,10 +137,9 @@ class Analysis:
         
         return exported
 
-    # TODO: calc_confidence calculates values for front and side view confidence. it should do this
-    # based on horizontal distance between the hips. compute() will average the confidence values of the first few frames
     def calc_confidence(self, landmarks):
         hips_horizontal_distance = abs(landmarks[LEFT_HIP_ID].x - landmarks[RIGHT_HIP_ID].x)
+        shoulders_horizontal_distance = abs(landmarks[LEFT_SHOULDER_ID].x - landmarks[RIGHT_SHOULDER_ID].x)
 
         shoulder_mid = (landmarks[LEFT_SHOULDER_ID].y + landmarks[RIGHT_SHOULDER_ID].y) / 2
         heels_mid = (landmarks[LEFT_HEEL_ID].y + landmarks[RIGHT_HEEL_ID].y) / 2
@@ -149,10 +147,16 @@ class Analysis:
         body_height = abs(shoulder_mid - heels_mid)
 
         hips_ratio = hips_horizontal_distance / body_height
+        shoulders_ratio = shoulders_horizontal_distance / body_height
 
-        K_VALUE = 0.05
+        HIP_K_VALUE = 0.1
+        SHOULDER_K_VALUE = 0.2
 
-        front = hips_ratio / (hips_ratio + K_VALUE)
+        front1 = hips_ratio / (hips_ratio + HIP_K_VALUE)
+        front2 = shoulders_ratio / (shoulders_ratio + SHOULDER_K_VALUE)
+
+        front = (front1 + front2) / 2
+        
         side = 1.00 - front
 
         return {"front": front, "side": side}
@@ -210,43 +214,58 @@ class Analysis:
 
         return np.degrees(np.arccos(dot))
     
+    def is_inverted(self, landmarks):
+        shoulder_mid = (landmarks[LEFT_SHOULDER_ID].y + landmarks[RIGHT_SHOULDER_ID].y) / 2
+        hips_mid = (landmarks[LEFT_HIP_ID].y + landmarks[RIGHT_HIP_ID].y) / 2
+
+        return hips_mid > shoulder_mid
+
     def is_airborne(self, landmarks):
         # input: 33 landmarks, output: True if both feet are off the ground, False otherwise
-
-        if self.frame_count > 20: #we waiting until 30 frames, assume they haven't jumped before then
             if landmarks is None:
                 return False
-            lhips = landmarks[LEFT_HIP_ID].y
-            rhips = landmarks[RIGHT_HIP_ID].y
+            
+            shoulder_mid = (landmarks[LEFT_SHOULDER_ID].y + landmarks[RIGHT_SHOULDER_ID].y) / 2
+            heels_mid = (landmarks[LEFT_HEEL_ID].y + landmarks[RIGHT_HEEL_ID].y) / 2
+
+            body_height = abs(shoulder_mid - heels_mid)
+
+            TAKEOFF_THRESH = 0.020 * body_height
+            LANDING_THRESH = 0.020 * body_height
+            STABLE_THRESH = 0.200 * body_height
+
             lheel = landmarks[LEFT_HEEL_ID].y
             rheel = landmarks[RIGHT_HEEL_ID].y
-            lknee = landmarks[LEFT_KNEE_ID].y
-            rknee = landmarks[RIGHT_KNEE_ID].y
-            ##if lheel < lhips and rheel < rhips:
-                ##return True
+            l_diff = self.leftgroundheight - lheel
+            r_diff = self.rightgroundheight - rheel
+            lowest = max(self.leftgroundheight, self.rightgroundheight)
+            ld1 = lowest - rheel
+            ld2 = lowest - lheel
+
             if not self.airborne:
                 l_diff = self.leftgroundheight - lheel
                 r_diff = self.rightgroundheight - rheel
-                if l_diff > 0.01 and r_diff > 0.01:
+                if l_diff > TAKEOFF_THRESH and r_diff > TAKEOFF_THRESH:
                     return True
                 self.leftgroundheight = lheel
                 self.rightgroundheight = rheel
-                self.startlefthip = lhips
-                self.startrighthip = rhips
-                self.startleftknee = lknee
-                self.startrightknee = rknee
+                self.stable_heel_frames = 0
                 return False
             else:
                 l_diff = self.leftgroundheight - lheel
                 r_diff = self.rightgroundheight - rheel
-                if l_diff < 0.01 or r_diff < 0.01:
+                if ld1 < LANDING_THRESH or ld2 < LANDING_THRESH:
                     self.leftgroundheight = lheel
                     self.rightgroundheight = rheel
-                    self.startlefthip = lhips
-                    self.startrighthip = rhips
-                    self.startleftknee = lknee
-                    self.startrightknee = rknee
+                    self.stable_heel_frames = 0
                     return False
+                elif ld1 < STABLE_THRESH or ld2 < STABLE_THRESH:
+                    self.stable_heel_frames += 1
+                    if self.stable_heel_frames > 10:
+                        self.leftgroundheight = lheel
+                        self.rightgroundheight = rheel
+                        self.stable_heel_frames = 0
+                        return False
                 else:
                     return True
             
