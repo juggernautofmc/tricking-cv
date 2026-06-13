@@ -24,23 +24,21 @@ def process_video(source):
     anly = analysis.Analysis()
 
     fps = 30
-    # width = int(capt.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    # height = int(capt.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    conf = ""
+    width = int(capt.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(capt.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    # fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    # writer = cv2.VideoWriter(
-    #         "output.mp4",
-    #         fourcc,
-    #         fps,
-    #         (width, height)
-    #     )
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    writer = cv2.VideoWriter(
+            "output.mp4",
+            fourcc,
+            fps,
+            (width, height)
+        )
 
     in_air_frames = 0
     max_hip_rotation = 0
-    front = 0
-    side = 0
-    heel_dist_onjump = 0
+    landing = None
+    takeoff = None
     
     while True:
         frame = capt.read()
@@ -54,44 +52,35 @@ def process_video(source):
             result = anly.compute(landmarks)
             airborne = result["is_airborne"]
             hip_rot = result["hip_rotation"]
-            front = result["front_view_confidence"]
-            side = result["side_view_confidence"]
-            heel_dist = result["heel_dist"]
+            takeoff = result["takeoff_foot"]
+            landing = result["landing_foot"]
 
             if hip_rot > max_hip_rotation:
                 max_hip_rotation = hip_rot
 
             if airborne:
-                if in_air_frames == 2:
-                    heel_dist_onjump = heel_dist
                 in_air_frames += 1
 
-            # ovly = overlay.Overlay(landmarks, width, height)
-            # ovly.draw_overlay(frame, airborne, hip_rot)
-
-            if front > side:
-                conf = "Front View Confidence: " + str(front)
-            else:
-                conf = "Side View Confidence: " + str(side)
+            ovly = overlay.Overlay(landmarks, width, height)
+            ovly.draw_overlay(frame, airborne, hip_rot)
         
-        # writer.write(frame) # make sure we writin the new frames and stuff
-    print(conf)
+        writer.write(frame) # make sure we writin the new frames and stuff
     capt.release()
-    # writer.release()
+    writer.release()
     pos.close()
 
     return {
         "in_air_frames": in_air_frames,
         "max_hip_rotation": max_hip_rotation,
-        # "front_conf": front,
-        # "side_conf": side,
-        # these two metrics currently hurt model accuracy in their current implementation
-        "heel_dist_onjump": float(heel_dist_onjump),
+        "takeoff_foot": int(takeoff),
+        "landing_foot": int(landing),
         "red_flag": ((in_air_frames < 8) or (in_air_frames > 35))
     }
 
 if __name__ == "__main__":
-    filepath = "input.mp4"
-    process_video(filepath)
+    filepath = "dataset_videos/540-kick/IMG_2560 4.MOV"
+    result = process_video(filepath)
+    print("takeoff foot:", result["takeoff_foot"])
+    print("landing foot:", result["landing_foot"])
     
 

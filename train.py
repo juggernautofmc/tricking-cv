@@ -12,6 +12,8 @@ df = df[df["red_flag"] == False]
 metrics = [
     "in_air_frames",
     "max_hip_rotation",
+    "takeoff_foot",
+    "landing_foot"
 ]
 
 x = df[metrics]
@@ -21,14 +23,14 @@ x_train, x_test, y_train, y_test = train_test_split(
     x,
     y,
     test_size=0.2,
-    random_state=1
+    random_state=67
 )
 
 model = RandomForestClassifier(
-    n_estimators=200,
-    max_depth=2,
-    class_weight="balanced",
-    random_state=1
+    n_estimators=100,
+    max_depth=3,
+    min_samples_leaf=4,
+    random_state=67
 )
 
 model.fit(x_train, y_train)

@@ -60,12 +60,11 @@ class Analysis:
         self.heel_distance = 0 #distance between the two heels
         self.l_knee_angle = 0 # angle in degrees @ left knee
         self.r_knee_angle = 0 # angle in degree @ right knee
-        self.front_view_confidence = 0 # how much are we sure this trick is done towards the camera (0.0-1.0)
-        self.side_view_confidence = 0 # same thing but for side view (0.0-1.0)
+        self.takeoff_foot = -1 # 0 (left foot), 1 (right foot), or 2 (both feet)
+        self.landing_foot = -1 # 0 (left foot), 1 (right foot), or 2 (both feet)
 
         self.airborne = False
         self.inverted = False
-        self.first_jump = False
 
     def compute(self, landmarks):
 
@@ -82,16 +81,6 @@ class Analysis:
             self.leftgroundheight = lheel.y
             self.rightgroundheight = rheel.y
 
-        conf = self.calc_confidence(landmarks)
-
-        if not self.first_jump:
-            if self.front_view_confidence == 0 or self.side_view_confidence == 0:
-                self.front_view_confidence = conf["front"]
-                self.side_view_confidence = conf["side"]
-            else:
-                self.front_view_confidence = (self.front_view_confidence + conf["front"]) / 2
-                self.side_view_confidence = (self.side_view_confidence + conf["side"]) / 2
-
         self.airborne = self.is_airborne(landmarks)
         self.heel_vec = (np.array([lheel.x, lheel.y]) - np.array([rheel.x, rheel.y]))
         self.heel_distance = np.linalg.norm(self.heel_vec)
@@ -101,7 +90,6 @@ class Analysis:
 
         if self.airborne:
             self.hip_rotation += self.calc_hip_rot(landmarks)
-            self.first_jump = True
         else:
             self.hip_rotation = 0
 
@@ -114,9 +102,9 @@ class Analysis:
             "heel_dist": self.heel_distance,
             "l_knee_angle": self.l_knee_angle,
             "r_knee_angle": self.r_knee_angle,
-            "front_view_confidence": self.front_view_confidence,
-            "side_view_confidence": self.side_view_confidence,
             "frame_count": self.frame_count,
+            "takeoff_foot": self.takeoff_foot,
+            "landing_foot": self.landing_foot,
             "landmarks": self.export_landmarks(landmarks)
             }
 
@@ -136,30 +124,6 @@ class Analysis:
             })
         
         return exported
-
-    def calc_confidence(self, landmarks):
-        hips_horizontal_distance = abs(landmarks[LEFT_HIP_ID].x - landmarks[RIGHT_HIP_ID].x)
-        shoulders_horizontal_distance = abs(landmarks[LEFT_SHOULDER_ID].x - landmarks[RIGHT_SHOULDER_ID].x)
-
-        shoulder_mid = (landmarks[LEFT_SHOULDER_ID].y + landmarks[RIGHT_SHOULDER_ID].y) / 2
-        heels_mid = (landmarks[LEFT_HEEL_ID].y + landmarks[RIGHT_HEEL_ID].y) / 2
-
-        body_height = abs(shoulder_mid - heels_mid)
-
-        hips_ratio = hips_horizontal_distance / body_height
-        shoulders_ratio = shoulders_horizontal_distance / body_height
-
-        HIP_K_VALUE = 0.1
-        SHOULDER_K_VALUE = 0.2
-
-        front1 = hips_ratio / (hips_ratio + HIP_K_VALUE)
-        front2 = shoulders_ratio / (shoulders_ratio + SHOULDER_K_VALUE)
-
-        front = (front1 + front2) / 2
-        
-        side = 1.00 - front
-
-        return {"front": front, "side": side}
 
     def calc_hip_rot(self, landmarks):
         curr_midpt_x = (landmarks[LEFT_HIP_ID].x + landmarks[RIGHT_HIP_ID].x) / 2
@@ -219,6 +183,27 @@ class Analysis:
         hips_mid = (landmarks[LEFT_HIP_ID].y + landmarks[RIGHT_HIP_ID].y) / 2
 
         return hips_mid > shoulder_mid
+    
+    def find_lower_foot(self, landmarks):
+        lheel = landmarks[LEFT_HEEL_ID].y
+        rheel = landmarks[RIGHT_HEEL_ID].y
+
+        shoulder_mid = (landmarks[LEFT_SHOULDER_ID].y + landmarks[RIGHT_SHOULDER_ID].y) / 2
+        heels_mid = (lheel + rheel) / 2
+
+        body_height = abs(shoulder_mid - heels_mid)
+
+        ONE_FOOT_THRESH = 0.04 * body_height
+
+        diff = abs(lheel - rheel)
+
+        if diff > ONE_FOOT_THRESH:
+            if lheel > rheel:
+                return 0 # == left foot
+            else:
+                return 1 # == right foot
+        else:
+            return 2 # == both feet
 
     def is_airborne(self, landmarks):
         # input: 33 landmarks, output: True if both feet are off the ground, False otherwise
@@ -230,9 +215,9 @@ class Analysis:
 
             body_height = abs(shoulder_mid - heels_mid)
 
-            TAKEOFF_THRESH = 0.020 * body_height
+            TAKEOFF_THRESH = 0.040 * body_height
             LANDING_THRESH = 0.020 * body_height
-            STABLE_THRESH = 0.200 * body_height
+            STABLE_THRESH = 0.250 * body_height
 
             lheel = landmarks[LEFT_HEEL_ID].y
             rheel = landmarks[RIGHT_HEEL_ID].y
@@ -246,6 +231,7 @@ class Analysis:
                 l_diff = self.leftgroundheight - lheel
                 r_diff = self.rightgroundheight - rheel
                 if l_diff > TAKEOFF_THRESH and r_diff > TAKEOFF_THRESH:
+                    self.takeoff_foot = self.find_lower_foot(landmarks)
                     return True
                 self.leftgroundheight = lheel
                 self.rightgroundheight = rheel
@@ -258,6 +244,7 @@ class Analysis:
                     self.leftgroundheight = lheel
                     self.rightgroundheight = rheel
                     self.stable_heel_frames = 0
+                    self.landing_foot = self.find_lower_foot(landmarks)
                     return False
                 elif ld1 < STABLE_THRESH or ld2 < STABLE_THRESH:
                     self.stable_heel_frames += 1
@@ -265,7 +252,9 @@ class Analysis:
                         self.leftgroundheight = lheel
                         self.rightgroundheight = rheel
                         self.stable_heel_frames = 0
+                        self.landing_foot = self.find_lower_foot(landmarks)
                         return False
+                    return True
                 else:
                     return True
             
