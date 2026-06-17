@@ -355,6 +355,3 @@ The long-term goal is to support automated trick recognition and useful coaching
 
 ---
 
-## License
-
-Add the license that best fits your intended use. The MIT License is a common choice for open-source personal projects.
