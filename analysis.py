@@ -10,18 +10,18 @@ import numpy as np
 #   it only does math on landmark coordinates
 
 ## LANDMARK INDICES
-LEFT_SHOULDER_ID = 11
-RIGHT_SHOULDER_ID = 12
-LEFT_ELBOW_ID = 13
-RIGHT_ELBOW_ID = 14
-LEFT_WRIST_ID = 15
-RIGHT_WRIST_ID = 16
-LEFT_HIP_ID = 23
-RIGHT_HIP_ID = 24
-LEFT_KNEE_ID = 25
-RIGHT_KNEE_ID = 26
-LEFT_HEEL_ID = 29
-RIGHT_HEEL_ID = 30
+LEFT_SHOULDER_ID = 5
+RIGHT_SHOULDER_ID = 6
+LEFT_ELBOW_ID = 7
+RIGHT_ELBOW_ID = 8
+LEFT_WRIST_ID = 9
+RIGHT_WRIST_ID = 10
+LEFT_HIP_ID = 11
+RIGHT_HIP_ID = 12
+LEFT_KNEE_ID = 13
+RIGHT_KNEE_ID = 14
+LEFT_HEEL_ID = 15
+RIGHT_HEEL_ID = 16
 
 LANDMARKS = [
     LEFT_SHOULDER_ID,
@@ -44,16 +44,20 @@ class MockLandmark:
         self.y = y
 
 class Analysis:
-    def __init__(self):
+    def __init__(self, width, height):
         # input: none, output: none, useless function lol 
         self.leftgroundheight = None
         self.rightgroundheight = None
+        self.grounded_hip_y = None
 
         self.prevhip = None #hip landmark of previous frame
         self.prevmidpthips = None #hip midpoint landmark of previous frame
         self.heel_vec = None
 
         self.frame_count = 0 #yup we tracking frames now
+        self.frame_width = width #frame width
+        self.frame_height = height #frame height
+        self.body_height = 0
         self.stable_heel_frames = 0
         self.hip_rotation = 0 #trackin OBSERVABLE in-air hip rotation about the midpoint in degrees 
         # (note: this number is not accurate to 3d space)
@@ -62,30 +66,41 @@ class Analysis:
         self.r_knee_angle = 0 # angle in degree @ right knee
         self.takeoff_foot = -1 # 0 (left foot), 1 (right foot), or 2 (both feet)
         self.landing_foot = -1 # 0 (left foot), 1 (right foot), or 2 (both feet)
+        self.left_ft_ht_landing = 0
 
         self.airborne = False
         self.inverted = False
+
+    def handle_missing_detection(self):
+        self.stable_heel_frames = 0
+        self.hip_rotation = 0
+        self.airborne = False
+        return False
 
     def compute(self, landmarks):
 
         lheel = landmarks[LEFT_HEEL_ID]
         rheel = landmarks[RIGHT_HEEL_ID]
-        lknee = landmarks[LEFT_KNEE_ID]
-        rknee = landmarks[RIGHT_KNEE_ID]
         lhips = landmarks[LEFT_HIP_ID]
         rhips = landmarks[RIGHT_HIP_ID]
             
         self.frame_count += 1
 
-        if self.leftgroundheight is None:
-            self.leftgroundheight = lheel.y
-            self.rightgroundheight = rheel.y
+        if self.frame_count == 1:
+            shoulder_mid = (landmarks[LEFT_SHOULDER_ID].y + landmarks[RIGHT_SHOULDER_ID].y) / 2
+            heels_mid = (lheel.y + rheel.y) / 2
+
+            self.body_height = abs(shoulder_mid - heels_mid)
+
+
+            if self.leftgroundheight is None:
+                self.leftgroundheight = lheel.y
+                self.rightgroundheight = rheel.y
+                self.grounded_hip_y = (lhips.y + rhips.y) / 2
 
         self.airborne = self.is_airborne(landmarks)
         self.heel_vec = (np.array([lheel.x, lheel.y]) - np.array([rheel.x, rheel.y]))
         self.heel_distance = np.linalg.norm(self.heel_vec)
-        self.l_knee_angle = self.joint_angle(lhips, lknee, lheel)
-        self.r_knee_angle = self.joint_angle(rhips, rknee, rheel)
         self.inverted = self.is_inverted(landmarks)
 
         if self.airborne:
@@ -104,6 +119,7 @@ class Analysis:
             "r_knee_angle": self.r_knee_angle,
             "frame_count": self.frame_count,
             "takeoff_foot": self.takeoff_foot,
+            "left_ft_ht": self.left_ft_ht_landing,
             "landing_foot": self.landing_foot,
             "landmarks": self.export_landmarks(landmarks)
             }
@@ -126,13 +142,18 @@ class Analysis:
         return exported
 
     def calc_hip_rot(self, landmarks):
-        curr_midpt_x = (landmarks[LEFT_HIP_ID].x + landmarks[RIGHT_HIP_ID].x) / 2
-        curr_midpt_y = (landmarks[LEFT_HIP_ID].y + landmarks[RIGHT_HIP_ID].y) / 2
+        curr_midpt_x = (landmarks[LEFT_HIP_ID].x + landmarks[RIGHT_HIP_ID].x) * self.frame_width / 2
+        curr_midpt_y = (landmarks[LEFT_HIP_ID].y + landmarks[RIGHT_HIP_ID].y) * self.frame_height / 2
         curr_midpt = MockLandmark(curr_midpt_x, curr_midpt_y)
+
+        curr_hip = MockLandmark(
+            landmarks[LEFT_HIP_ID].x * self.frame_width,
+            landmarks[LEFT_HIP_ID].y * self.frame_height
+        )
 
         if self.prevmidpthips is None or self.prevhip is None:
             self.prevmidpthips = curr_midpt
-            self.prevhip = landmarks[LEFT_HIP_ID]
+            self.prevhip = curr_hip
             return 0
 
         dx_midpt = curr_midpt.x - self.prevmidpthips.x
@@ -141,8 +162,6 @@ class Analysis:
         adjusted_hip_x = self.prevhip.x + dx_midpt
         adjusted_hip_y = self.prevhip.y + dy_midpt
         init_hip = MockLandmark(adjusted_hip_x, adjusted_hip_y)
-
-        curr_hip = landmarks[LEFT_HIP_ID]
 
         self.prevhip = curr_hip
         self.prevmidpthips = curr_midpt
@@ -187,13 +206,7 @@ class Analysis:
     def find_lower_foot(self, landmarks):
         lheel = landmarks[LEFT_HEEL_ID].y
         rheel = landmarks[RIGHT_HEEL_ID].y
-
-        shoulder_mid = (landmarks[LEFT_SHOULDER_ID].y + landmarks[RIGHT_SHOULDER_ID].y) / 2
-        heels_mid = (lheel + rheel) / 2
-
-        body_height = abs(shoulder_mid - heels_mid)
-
-        ONE_FOOT_THRESH = 0.04 * body_height
+        ONE_FOOT_THRESH = 0.02 * self.body_height
 
         diff = abs(lheel - rheel)
 
@@ -209,15 +222,33 @@ class Analysis:
         # input: 33 landmarks, output: True if both feet are off the ground, False otherwise
             if landmarks is None:
                 return False
-            
-            shoulder_mid = (landmarks[LEFT_SHOULDER_ID].y + landmarks[RIGHT_SHOULDER_ID].y) / 2
-            heels_mid = (landmarks[LEFT_HEEL_ID].y + landmarks[RIGHT_HEEL_ID].y) / 2
 
-            body_height = abs(shoulder_mid - heels_mid)
+            REQUIRED_VISIBILITY = 0.55
 
-            TAKEOFF_THRESH = 0.040 * body_height
-            LANDING_THRESH = 0.020 * body_height
-            STABLE_THRESH = 0.250 * body_height
+            required_ids = [
+                LEFT_HIP_ID,
+                RIGHT_HIP_ID,
+                LEFT_KNEE_ID,
+                RIGHT_KNEE_ID,
+                LEFT_HEEL_ID,
+                RIGHT_HEEL_ID,
+            ]
+
+            for idx in required_ids:
+                if landmarks[idx].visibility < REQUIRED_VISIBILITY:
+                    self.stable_heel_frames = 0
+                    return self.airborne
+
+            TAKEOFF_THRESH = 0.010 * self.body_height
+            HIP_TAKEOFF_THRESH = 0.025 * self.body_height
+            LANDING_THRESH = 0.025 * self.body_height
+            STABLE_THRESH = 0.250 * self.body_height
+
+            curr_midpt_x_norm = (landmarks[LEFT_HIP_ID].x + landmarks[RIGHT_HIP_ID].x) / 2
+            curr_midpt_y_norm = (landmarks[LEFT_HIP_ID].y + landmarks[RIGHT_HIP_ID].y) / 2
+            curr_midpt_x = curr_midpt_x_norm * self.frame_width
+            curr_midpt_y = curr_midpt_y_norm * self.frame_height
+            curr_midpt = MockLandmark(curr_midpt_x, curr_midpt_y)
 
             lheel = landmarks[LEFT_HEEL_ID].y
             rheel = landmarks[RIGHT_HEEL_ID].y
@@ -230,12 +261,23 @@ class Analysis:
             if not self.airborne:
                 l_diff = self.leftgroundheight - lheel
                 r_diff = self.rightgroundheight - rheel
-                if l_diff > TAKEOFF_THRESH and r_diff > TAKEOFF_THRESH:
+                hip_diff = self.grounded_hip_y - curr_midpt_y_norm
+                if (
+                    l_diff > TAKEOFF_THRESH
+                    and r_diff > TAKEOFF_THRESH
+                    and hip_diff > HIP_TAKEOFF_THRESH
+                ):
                     self.takeoff_foot = self.find_lower_foot(landmarks)
                     return True
                 self.leftgroundheight = lheel
                 self.rightgroundheight = rheel
+                self.grounded_hip_y = curr_midpt_y_norm
                 self.stable_heel_frames = 0
+                self.prevmidpthips = curr_midpt
+                self.prevhip = MockLandmark(
+                    landmarks[LEFT_HIP_ID].x * self.frame_width,
+                    landmarks[LEFT_HIP_ID].y * self.frame_height
+                )
                 return False
             else:
                 l_diff = self.leftgroundheight - lheel
@@ -245,6 +287,12 @@ class Analysis:
                     self.rightgroundheight = rheel
                     self.stable_heel_frames = 0
                     self.landing_foot = self.find_lower_foot(landmarks)
+                    self.left_ft_ht_landing = lheel  / self.body_height
+                    self.prevmidpthips = curr_midpt
+                    self.prevhip = MockLandmark(
+                        landmarks[LEFT_HIP_ID].x * self.frame_width,
+                        landmarks[LEFT_HIP_ID].y * self.frame_height
+                    )
                     return False
                 elif ld1 < STABLE_THRESH or ld2 < STABLE_THRESH:
                     self.stable_heel_frames += 1
@@ -253,6 +301,12 @@ class Analysis:
                         self.rightgroundheight = rheel
                         self.stable_heel_frames = 0
                         self.landing_foot = self.find_lower_foot(landmarks)
+                        self.left_ft_ht_landing = lheel  / self.body_height
+                        self.prevmidpthips = curr_midpt
+                        self.prevhip = MockLandmark(
+                            landmarks[LEFT_HIP_ID].x * self.frame_width,
+                            landmarks[LEFT_HIP_ID].y * self.frame_height
+                        )
                         return False
                     return True
                 else:

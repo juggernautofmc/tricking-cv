@@ -1,63 +1,80 @@
-import cv2
-import mediapipe as mp
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
+from ultralytics import YOLO
 
-# PURPOSE: mediapipe wrapper
-# - initialise the mediapipe pose detector
+# PURPOSE: YOLO pose wrapper
+# - initialise the YOLO pose detector
 # - take a raw BGR frame as input, run pose detection on it
-# - output a data object (you decide the shape) containing the 33 raw landmarks
-#   each landmark has x, y, z (depth) and visibility (confidence) fields
-# - return None (or similar) if no person is detected in the frame
-#-Sami and Eshwar
+# - output the 17 YOLO/COCO pose landmarks
+# - each landmark has x, y, z, and visibility fields
+# - return None if no person is detected in the frame
+
+
+class Landmark:
+    def __init__(self, x=0.0, y=0.0, z=0.0, visibility=0.0):
+        self.x = x
+        self.y = y
+        self.z = z
+        self.visibility = visibility
 
 
 class PoseDetector:
+    def __init__(self, model_path="yolo26l-pose.pt", conf=0.25, imgsz=640):
+        # If yolo26n-pose.pt is not available in your local Ultralytics install,
+        # use another YOLO pose model such as yolo11n-pose.pt.
+        self.model = YOLO(model_path)
+        self.conf = conf
+        self.imgsz = imgsz
 
-    def __init__(self):
-        # input: none (optionally confidence thresholds if you want to configure them)
-        # output: none, sets up the mediapipe pose object
-        # used by: app.py once at startup before the frame loop begins
-
-        base_options = python.BaseOptions(
-            model_asset_path="pose_landmarker_full.task"
+    def process(self, frame, fps=None):
+        # input: BGR frame from capture.py
+        # output: list of 17 YOLO/COCO pose landmarks
+        results = self.model.predict(
+            frame,
+            conf=self.conf,
+            imgsz=self.imgsz,
+            verbose=False,
         )
 
-        options = vision.PoseLandmarkerOptions(
-            base_options=base_options,
-            running_mode=vision.RunningMode.VIDEO,
-            num_poses=1
-        )
-
-        self.landmarker = vision.PoseLandmarker.create_from_options(options)
-        self.frame_index = 0
-        
-
-    def process(self, frame, fps):
-        # input: bgr frame from capture.py
-        # output: returns the 33 landmarks for a pose/33 spots that mediapipe detects
-        # app.py calls this process every frame and gives it to analysis.py
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) #literally just swap to get rgb from bgr
-        
-        mp_image = mp.Image(
-            image_format=mp.ImageFormat.SRGB,
-            data=rgb_frame
-        ) ## MediaPipe doesn't accept a numpy frame, create mediapipe Image object with the frame data
-
-        timestamp_ms = int((self.frame_index / fps) * 1000) ## calculate timestamp in ms
-
-        result = self.landmarker.detect_for_video(
-            mp_image,
-            timestamp_ms
-        )
-
-        self.frame_index += 1
-        ## go to next frame
-
-        if not result.pose_landmarks:
+        if not results:
             return None
 
-        return result.pose_landmarks[0]
-    
-    def close(self): ##closes landmarker
-        self.landmarker.close()
+        result = results[0]
+
+        if result.keypoints is None or result.keypoints.xyn is None:
+            return None
+
+        xyn = result.keypoints.xyn
+        if len(xyn) == 0:
+            return None
+
+        person_idx = self._best_person_index(result)
+        keypoints_xy = xyn[person_idx].cpu().numpy()
+
+        if result.keypoints.conf is not None:
+            keypoints_conf = result.keypoints.conf[person_idx].cpu().numpy()
+        else:
+            keypoints_conf = [1.0] * len(keypoints_xy)
+
+        landmarks = []
+        for point, confidence in zip(keypoints_xy, keypoints_conf):
+            landmarks.append(
+                Landmark(
+                    x=float(point[0]),
+                    y=float(point[1]),
+                    z=0.0,
+                    visibility=float(confidence),
+                )
+            )
+
+        return landmarks
+
+    def close(self):
+        # Kept so app.py can call pos.close() for either backend.
+        pass
+
+    def _best_person_index(self, result):
+        if result.boxes is None or result.boxes.xyxy is None or len(result.boxes.xyxy) == 0:
+            return 0
+
+        boxes = result.boxes.xyxy.cpu().numpy()
+        areas = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+        return int(areas.argmax())

@@ -11,6 +11,8 @@ VIDEO_EXTENSIONS = (".mp4", ".MOV", ".mov", ".avi", ".mkv")
 def batch_process(video_root, output_csv="dataset.csv"):
     rows = []
 
+    clip_number = 0
+
     for label in os.listdir(video_root):
         label_path = os.path.join(video_root, label)
 
@@ -26,7 +28,7 @@ def batch_process(video_root, output_csv="dataset.csv"):
             print(f"Processing {video_path}...")
 
             try:
-                result = process_video(video_path)
+                result = process_video(video_path, filename)
 
                 row = {
                     "video": filename,
@@ -36,6 +38,7 @@ def batch_process(video_root, output_csv="dataset.csv"):
                 }
 
                 rows.append(row)
+                clip_number += 1
 
             except Exception as e:
                 print(f"FAILED: {video_path}")

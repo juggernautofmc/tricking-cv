@@ -1,5 +1,4 @@
 import cv2
-import mediapipe as mp
 
 # PURPOSE: draw everything onto the video frame for display
 # - input: a raw frame + the metrics/landmarks computed by pose.py and analysis.py
@@ -10,18 +9,18 @@ import mediapipe as mp
 # - Sami
 
 ## LANDMARK INDICES
-LEFT_SHOULDER_ID = 11
-RIGHT_SHOULDER_ID = 12
-LEFT_ELBOW_ID = 13
-RIGHT_ELBOW_ID = 14
-LEFT_WRIST_ID = 15
-RIGHT_WRIST_ID = 16
-LEFT_HIP_ID = 23
-RIGHT_HIP_ID = 24
-LEFT_KNEE_ID = 25
-RIGHT_KNEE_ID = 26
-LEFT_HEEL_ID = 29
-RIGHT_HEEL_ID = 30
+LEFT_SHOULDER_ID = 5
+RIGHT_SHOULDER_ID = 6
+LEFT_ELBOW_ID = 7
+RIGHT_ELBOW_ID = 8
+LEFT_WRIST_ID = 9
+RIGHT_WRIST_ID = 10
+LEFT_HIP_ID = 11
+RIGHT_HIP_ID = 12
+LEFT_KNEE_ID = 13
+RIGHT_KNEE_ID = 14
+LEFT_HEEL_ID = 15
+RIGHT_HEEL_ID = 16
 
 ## COLORS (B,G,R)
 RED = (0, 0, 255)
