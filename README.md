@@ -299,6 +299,22 @@ The inference pipeline should match training as closely as possible, including:
 
 ---
 
+## Data Visualization
+
+This project includes a visualization component implemented in `overlay.py`, which plots points for each detected landmark and connects them to form a skeleton overlay on the video frames. Additionally, it displays key metrics such as hip rotation in degrees and airborne status directly on the video. This visualization is effective for real-time or frame-by-frame analysis, allowing users to verify the accuracy of pose estimation and observe how the system interprets the athlete's movements.
+
+### Why This Is Effective
+
+- **Immediate Feedback**: The overlay provides a clear, visual representation of the detected skeleton and metrics, making it easier to understand how the system processes the video.
+- **Debugging**: It helps identify specific frames where pose estimation might fail, such as incorrect limb positions or missing landmarks.
+- **Interpretability**: Displaying metrics like hip rotation in degrees directly on the video makes the system's calculations more transparent.
+
+### Why This Isn't Effective
+
+While the overlay is useful for analyzing individual clips, it does not address the challenge of analyzing a large batch of clips to pinpoint where pose estimation errors are occurring. For example, if the pose model consistently fails under certain conditions (e.g., motion blur, occlusion, or extreme body positions), manually reviewing each clip with the overlay is time-consuming and inefficient. A more scalable solution, such as automated error detection or batch-level data visualization, would be needed to identify systemic issues in pose estimation across a dataset.
+
+---
+
 ## Current Limitations
 
 - The validated dataset contains only 57 clips.
